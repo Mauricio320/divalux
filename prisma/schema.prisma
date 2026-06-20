@@ -1,0 +1,612 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum Role {
+  ADMIN
+  VENDEDOR
+}
+
+enum EstadoFactura {
+  BORRADOR
+  CONFIRMADA
+  ANULADA
+  EMITIDA // fase 2 (DIAN autorizó)
+  RECHAZADA // fase 2 (DIAN rechazó)
+}
+
+enum TipoMovimiento {
+  ENTRADA
+  AJUSTE
+  TRASLADO_SALIDA
+  TRASLADO_ENTRADA
+  VENTA
+  REVERSA
+}
+
+enum EstadoCotizacion {
+  BORRADOR
+  ENVIADA
+  APROBADA
+  RECHAZADA
+  VENCIDA
+}
+
+// ============================================================
+// TENANT + EMISOR
+// ============================================================
+
+model Organizacion {
+  id        String   @id @default(cuid())
+  nombre    String
+  slug      String   @unique
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Emisor / operation_mode
+  razonSocial          String
+  nit                  String
+  dv                   Int
+  softwareName         String
+  merchantRegistration String?
+  direccion            String?
+  telefono             String?
+  email                String?
+
+  // Referencias a catálogos DIAN (ids fijos, sin FK; tablas semilla)
+  typeRegimeId        Int @default(1) // 1=Resp IVA, 2=No resp
+  typeOrganizationId  Int @default(1) // 1=Jurídica, 2=Natural
+  typeDocumentIdentId Int @default(6) // emisor normalmente NIT=6
+  municipalityId      Int
+
+  // Inventario
+  permitirStockNegativo Boolean @default(false)
+
+  // Numeración de cotizaciones (documento comercial, no fiscal)
+  secuenciaCotizacion Int @default(0)
+
+  // Integración Nextpyme (fase 2)
+  nextpymeBaseUrl     String  @default("https://api.nextpyme.plus/api/ubl2.1")
+  nextpymeToken       String?
+  certificateDaysLeft Int?
+
+  usuarios     Usuario[]
+  clientes     Cliente[]
+  productos    Producto[]
+  bodegas      Bodega[]
+  stocks       Stock[]
+  movimientos  MovimientoInventario[]
+  facturas     Factura[]
+  lineas       FacturaLinea[]
+  lineasImp    FacturaLineaImpuesto[]
+  facturaImp   FacturaImpuesto[]
+  allowances   AllowanceCharge[]
+  resoluciones ResolucionDian[]
+  cotizaciones Cotizacion[]
+  cotizLineas  CotizacionLinea[]
+  cotizLineasImp CotizacionLineaImpuesto[]
+  cotizImp     CotizacionImpuesto[]
+  cotizAllow   CotizacionAllowanceCharge[]
+}
+
+model ResolucionDian {
+  id               String    @id @default(cuid())
+  organizacionId   String
+  resolutionNumber String
+  prefix           String
+  rangoDesde       Int
+  rangoHasta       Int
+  ultimoNumero     Int       @default(0)
+  vigenteDesde     DateTime?
+  vigenteHasta     DateTime?
+  activa           Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+
+  organizacion Organizacion @relation(fields: [organizacionId], references: [id], onDelete: Cascade)
+  facturas     Factura[]
+
+  @@index([organizacionId, activa])
+}
+
+model Usuario {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  passwordHash   String
+  nombre         String
+  role           Role     @default(VENDEDOR)
+  activo         Boolean  @default(true)
+  organizacionId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organizacion       Organizacion           @relation(fields: [organizacionId], references: [id], onDelete: Cascade)
+  movimientos        MovimientoInventario[] @relation("MovimientoRegistradoPor")
+  facturasVendidas   Factura[]              @relation("FacturaVendedor")
+  facturasAnuladas   Factura[]              @relation("FacturaAnuladoPor")
+  cotizaciones       Cotizacion[]           @relation("CotizacionVendedor")
+
+  @@index([organizacionId])
+}
+
+// ============================================================
+// CATÁLOGOS DE NEGOCIO
+// ============================================================
+
+model Cliente {
+  id                   String   @id @default(cuid())
+  organizacionId       String
+  identificationNumber String
+  dv                   Int?
+  name                 String
+  phone                String?
+  address              String?
+  email                String?
+  merchantRegistration String?
+  typeDocumentIdentId  Int      @default(3) // 3=CC, 6=NIT
+  typeOrganizationId   Int? // 1=Jurídica, 2=Natural
+  typeLiabilityId      Int?
+  municipalityId       Int?
+  typeRegimeId         Int? // 1=Resp IVA, 2=No resp
+  esConsumidorFinal    Boolean  @default(false)
+  activo               Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  organizacion Organizacion @relation(fields: [organizacionId], references: [id], onDelete: Cascade)
+  facturas     Factura[]
+  cotizaciones Cotizacion[]
+
+  @@unique([organizacionId, identificationNumber])
+  @@index([organizacionId])
+}
+
+model Producto {
+  id                 String   @id @default(cuid())
+  organizacionId     String
+  code               String
+  nombre             String
+  unitMeasureId      Int      @default(70) // 70=Unidad
+  typeItemIdentId    Int      @default(4)
+  precioSinImpuesto  Decimal  @db.Decimal(18, 2)
+  taxId              Int      @default(1) // 1=IVA
+  percent            Decimal  @default(0) @db.Decimal(5, 2)
+  controlaStock      Boolean  @default(true)
+  activo             Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  organizacion Organizacion           @relation(fields: [organizacionId], references: [id], onDelete: Cascade)
+  stocks       Stock[]
+  movimientos  MovimientoInventario[]
+  lineas       FacturaLinea[]
+  cotizLineas  CotizacionLinea[]
+
+  @@unique([organizacionId, code])
+  @@index([organizacionId])
+}
+
+model Bodega {
+  id             String   @id @default(cuid())
+  organizacionId String
+  nombre         String
+  esPrincipal    Boolean  @default(false)
+  activo         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organizacion Organizacion           @relation(fields: [organizacionId], references: [id], onDelete: Cascade)
+  stocks       Stock[]
+  movimientos  MovimientoInventario[]
+  facturas     Factura[]
+
+  @@index([organizacionId])
+}
+
+// ============================================================
+// INVENTARIO
+// ============================================================
+
+model Stock {
+  id             String   @id @default(cuid())
+  organizacionId String
+  productoId     String
+  bodegaId       String
+  cantidad       Decimal  @default(0) @db.Decimal(18, 3)
+  updatedAt      DateTime @updatedAt
+
+  organizacion Organizacion @relation(fields: [organizacionId], references: [id], onDelete: Cascade)
+  producto     Producto     @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  bodega       Bodega       @relation(fields: [bodegaId], references: [id], onDelete: Cascade)
+
+  @@unique([organizacionId, productoId, bodegaId])
+  @@index([organizacionId, bodegaId])
+}
+
+model MovimientoInventario {
+  id              String         @id @default(cuid())
+  organizacionId  String
+  tipo            TipoMovimiento
+  productoId      String
+  bodegaId        String
+  cantidad        Decimal        @db.Decimal(18, 3)
+  saldoResultante Decimal        @db.Decimal(18, 3)
+  trasladoGrupoId String?
+  facturaId       String?
+  registradoPorId String
+  motivo          String?
+  createdAt       DateTime       @default(now())
+
+  organizacion  Organizacion @relation(fields: [organizacionId], references: [id], onDelete: Cascade)
+  producto      Producto     @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  bodega        Bodega       @relation(fields: [bodegaId], references: [id], onDelete: Cascade)
+  registradoPor Usuario      @relation("MovimientoRegistradoPor", fields: [registradoPorId], references: [id])
+  factura       Factura?     @relation(fields: [facturaId], references: [id], onDelete: SetNull)
+
+  @@index([organizacionId, productoId])
+  @@index([organizacionId, bodegaId])
+  @@index([facturaId])
+}
+
+// ============================================================
+// FACTURACIÓN
+// ============================================================
+
+model Factura {
+  id             String        @id @default(cuid())
+  organizacionId String
+  estado         EstadoFactura @default(BORRADOR)
+  typeDocumentId Int           @default(1)
+
+  // Numeración (se asigna al CONFIRMAR)
+  numero           Int?
+  prefix           String?
+  resolutionNumber String?
+  resolucionId     String?
+
+  fecha DateTime @default(now())
+  hora  String? // HH:mm:ss para el payload DIAN
+
+  // Cliente + snapshot (documento inmutable)
+  clienteId                  String
+  clienteIdentificationNumber String
+  clienteName                String
+
+  bodegaId  String
+  vendedorId String
+
+  // payment_form
+  paymentFormId   Int       @default(1) // 1=Contado, 2=Crédito
+  paymentMethodId Int       @default(10) // 10=Efectivo
+  paymentDueDate  DateTime?
+  durationMeasure String?
+
+  notes        String?
+  headNote     String?
+  footNote     String?
+  sendmail     Boolean @default(false)
+  sendmailtome Boolean @default(false)
+
+  // legal_monetary_totals
+  lineExtensionAmount  Decimal @default(0) @db.Decimal(18, 2)
+  taxExclusiveAmount   Decimal @default(0) @db.Decimal(18, 2)
+  taxInclusiveAmount   Decimal @default(0) @db.Decimal(18, 2)
+  allowanceTotalAmount Decimal @default(0) @db.Decimal(18, 2)
+  chargeTotalAmount    Decimal @default(0) @db.Decimal(18, 2)
+  payableAmount        Decimal @default(0) @db.Decimal(18, 2)
+
+  // Snapshot del payload Nextpyme (se congela al confirmar)
+  payloadNextpyme Json?
+
+  // Respuesta DIAN (fase 2)
+  cufe               String?
+  uuidDian           String?
+  urlInvoicePdf      String?
+  urlInvoiceXml      String?
+  urlInvoiceAttached String?
+  dianIsValid        Boolean?
+  dianStatusCode     String?
+  dianStatusMessage  String?
+  emitidaAt          DateTime?
+
+  // Auditoría de anulación
+  motivoAnulacion String?
+  anuladoPorId    String?
+  anuladoEn       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organizacion Organizacion          @relation(fields: [organizacionId], references: [id], onDelete: Cascade)
+  cliente      Cliente               @relation(fields: [clienteId], references: [id])
+  bodega       Bodega                @relation(fields: [bodegaId], references: [id])
+  vendedor     Usuario               @relation("FacturaVendedor", fields: [vendedorId], references: [id])
+  anuladoPor   Usuario?              @relation("FacturaAnuladoPor", fields: [anuladoPorId], references: [id])
+  resolucion   ResolucionDian?       @relation(fields: [resolucionId], references: [id])
+  lineas       FacturaLinea[]
+  impuestos    FacturaImpuesto[]
+  allowances   AllowanceCharge[]
+  movimientos  MovimientoInventario[]
+  cotizacionOrigen Cotizacion? @relation("CotizacionAFactura")
+
+  @@unique([organizacionId, prefix, numero])
+  @@index([organizacionId, estado])
+  @@index([organizacionId, clienteId])
+}
+
+model FacturaLinea {
+  id                  String  @id @default(cuid())
+  organizacionId      String
+  facturaId           String
+  productoId          String?
+  code                String
+  description         String
+  notes               String?
+  unitMeasureId       Int     @default(70)
+  invoicedQuantity    Decimal @db.Decimal(18, 3)
+  baseQuantity        Decimal @default(1) @db.Decimal(18, 3)
+  priceAmount         Decimal @db.Decimal(18, 2)
+  lineExtensionAmount Decimal @db.Decimal(18, 2)
+  freeOfChargeIndicator Boolean @default(false)
+  typeItemIdentId     Int     @default(4)
+
+  organizacion Organizacion          @relation(fields: [organizacionId], references: [id], onDelete: Cascade)
+  factura      Factura               @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+  producto     Producto?             @relation(fields: [productoId], references: [id], onDelete: SetNull)
+  impuestos    FacturaLineaImpuesto[]
+
+  @@index([facturaId])
+  @@index([organizacionId])
+}
+
+model FacturaLineaImpuesto {
+  id             String  @id @default(cuid())
+  organizacionId String
+  facturaLineaId String
+  taxId          Int
+  percent        Decimal @db.Decimal(5, 2)
+  taxableAmount  Decimal @db.Decimal(18, 2)
+  taxAmount      Decimal @db.Decimal(18, 2)
+
+  organizacion Organizacion @relation(fields: [organizacionId], references: [id], onDelete: Cascade)
+  linea        FacturaLinea @relation(fields: [facturaLineaId], references: [id], onDelete: Cascade)
+
+  @@index([facturaLineaId])
+  @@index([organizacionId])
+}
+
+model FacturaImpuesto {
+  id             String  @id @default(cuid())
+  organizacionId String
+  facturaId      String
+  taxId          Int
+  percent        Decimal @db.Decimal(5, 2)
+  taxableAmount  Decimal @db.Decimal(18, 2)
+  taxAmount      Decimal @db.Decimal(18, 2)
+
+  organizacion Organizacion @relation(fields: [organizacionId], references: [id], onDelete: Cascade)
+  factura      Factura      @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+
+  @@index([facturaId])
+  @@index([organizacionId])
+}
+
+model AllowanceCharge {
+  id                    String  @id @default(cuid())
+  organizacionId        String
+  facturaId             String
+  chargeIndicator       Boolean // false=descuento, true=cargo
+  amount                Decimal @db.Decimal(18, 2)
+  baseAmount            Decimal @db.Decimal(18, 2)
+  discountId            Int?
+  allowanceChargeReason String
+
+  organizacion Organizacion @relation(fields: [organizacionId], references: [id], onDelete: Cascade)
+  factura      Factura      @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+
+  @@index([facturaId])
+  @@index([organizacionId])
+}
+
+// ============================================================
+// COTIZACIONES (documento comercial, NO fiscal)
+// ============================================================
+
+model Cotizacion {
+  id             String          @id @default(cuid())
+  organizacionId String
+  estado         EstadoCotizacion @default(BORRADOR)
+  numero         Int
+  prefix         String          @default("COT")
+  fecha          DateTime        @default(now())
+  validezHasta   DateTime?
+
+  // Cliente + snapshot
+  clienteId                   String
+  clienteIdentificationNumber String
+  clienteName                 String
+
+  vendedorId String
+
+  paymentFormId   Int @default(1)
+  paymentMethodId Int @default(10)
+
+  notes    String?
+  headNote String?
+  footNote String?
+
+  // legal_monetary_totals
+  lineExtensionAmount  Decimal @default(0) @db.Decimal(18, 2)
+  taxExclusiveAmount   Decimal @default(0) @db.Decimal(18, 2)
+  taxInclusiveAmount   Decimal @default(0) @db.Decimal(18, 2)
+  allowanceTotalAmount Decimal @default(0) @db.Decimal(18, 2)
+  chargeTotalAmount    Decimal @default(0) @db.Decimal(18, 2)
+  payableAmount        Decimal @default(0) @db.Decimal(18, 2)
+
+  // Conversión a factura
+  facturaGeneradaId String?   @unique
+  convertidaEn      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organizacion    Organizacion                @relation(fields: [organizacionId], references: [id], onDelete: Cascade)
+  cliente         Cliente                     @relation(fields: [clienteId], references: [id])
+  vendedor        Usuario                     @relation("CotizacionVendedor", fields: [vendedorId], references: [id])
+  facturaGenerada Factura?                    @relation("CotizacionAFactura", fields: [facturaGeneradaId], references: [id], onDelete: SetNull)
+  lineas          CotizacionLinea[]
+  impuestos       CotizacionImpuesto[]
+  allowances      CotizacionAllowanceCharge[]
+
+  @@unique([organizacionId, prefix, numero])
+  @@index([organizacionId, estado])
+  @@index([organizacionId, clienteId])
+}
+
+model CotizacionLinea {
+  id                    String  @id @default(cuid())
+  organizacionId        String
+  cotizacionId          String
+  productoId            String?
+  code                  String
+  description           String
+  notes                 String?
+  unitMeasureId         Int     @default(70)
+  invoicedQuantity      Decimal @db.Decimal(18, 3)
+  baseQuantity          Decimal @default(1) @db.Decimal(18, 3)
+  priceAmount           Decimal @db.Decimal(18, 2)
+  lineExtensionAmount   Decimal @db.Decimal(18, 2)
+  freeOfChargeIndicator Boolean @default(false)
+  typeItemIdentId       Int     @default(4)
+
+  organizacion Organizacion                @relation(fields: [organizacionId], references: [id], onDelete: Cascade)
+  cotizacion   Cotizacion                  @relation(fields: [cotizacionId], references: [id], onDelete: Cascade)
+  producto     Producto?                   @relation(fields: [productoId], references: [id], onDelete: SetNull)
+  impuestos    CotizacionLineaImpuesto[]
+
+  @@index([cotizacionId])
+  @@index([organizacionId])
+}
+
+model CotizacionLineaImpuesto {
+  id                String  @id @default(cuid())
+  organizacionId    String
+  cotizacionLineaId String
+  taxId             Int
+  percent           Decimal @db.Decimal(5, 2)
+  taxableAmount     Decimal @db.Decimal(18, 2)
+  taxAmount         Decimal @db.Decimal(18, 2)
+
+  organizacion Organizacion    @relation(fields: [organizacionId], references: [id], onDelete: Cascade)
+  linea        CotizacionLinea @relation(fields: [cotizacionLineaId], references: [id], onDelete: Cascade)
+
+  @@index([cotizacionLineaId])
+  @@index([organizacionId])
+}
+
+model CotizacionImpuesto {
+  id             String  @id @default(cuid())
+  organizacionId String
+  cotizacionId   String
+  taxId          Int
+  percent        Decimal @db.Decimal(5, 2)
+  taxableAmount  Decimal @db.Decimal(18, 2)
+  taxAmount      Decimal @db.Decimal(18, 2)
+
+  organizacion Organizacion @relation(fields: [organizacionId], references: [id], onDelete: Cascade)
+  cotizacion   Cotizacion   @relation(fields: [cotizacionId], references: [id], onDelete: Cascade)
+
+  @@index([cotizacionId])
+  @@index([organizacionId])
+}
+
+model CotizacionAllowanceCharge {
+  id                    String  @id @default(cuid())
+  organizacionId        String
+  cotizacionId          String
+  chargeIndicator       Boolean
+  amount                Decimal @db.Decimal(18, 2)
+  baseAmount            Decimal @db.Decimal(18, 2)
+  discountId            Int?
+  allowanceChargeReason String
+
+  organizacion Organizacion @relation(fields: [organizacionId], references: [id], onDelete: Cascade)
+  cotizacion   Cotizacion   @relation(fields: [cotizacionId], references: [id], onDelete: Cascade)
+
+  @@index([cotizacionId])
+  @@index([organizacionId])
+}
+
+// ============================================================
+// CATÁLOGOS DIAN (tablas semilla; id = id DIAN)
+// ============================================================
+
+model TipoDocumentoIdentificacion {
+  id     Int     @id
+  nombre String
+  activo Boolean @default(true)
+}
+
+model TipoOrganizacion {
+  id     Int    @id
+  nombre String
+}
+
+model TipoRegimen {
+  id     Int    @id
+  nombre String
+}
+
+model TipoResponsabilidad {
+  id     Int    @id
+  nombre String
+}
+
+model FormaPago {
+  id     Int    @id
+  nombre String
+}
+
+model MetodoPago {
+  id     Int    @id
+  nombre String
+}
+
+model UnidadMedida {
+  id     Int    @id
+  nombre String
+}
+
+model Impuesto {
+  id     Int    @id
+  nombre String
+}
+
+model TipoDocumentoElectronico {
+  id     Int    @id
+  nombre String
+}
+
+model Departamento {
+  id         Int         @id
+  nombre     String
+  municipios Municipio[]
+}
+
+model Municipio {
+  id             Int          @id
+  nombre         String
+  departamentoId Int?
+  departamento   Departamento? @relation(fields: [departamentoId], references: [id])
+
+  @@index([departamentoId])
+}
