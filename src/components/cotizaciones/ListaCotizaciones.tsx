@@ -1,66 +1,106 @@
 'use client'
 
 import Link from 'next/link'
+import { Plus } from 'lucide-react'
 import { useCotizaciones } from '@/hooks/cotizaciones/use-cotizaciones'
 import { formatCOP, formatFecha } from '@/lib/format'
-
-const COLOR: Record<string, string> = {
-  BORRADOR: 'bg-gray-100 text-gray-700',
-  ENVIADA: 'bg-blue-100 text-blue-700',
-  APROBADA: 'bg-green-100 text-green-700',
-  RECHAZADA: 'bg-red-100 text-red-700',
-  VENCIDA: 'bg-orange-100 text-orange-700',
-}
+import { estadoBadgeVariant } from '@/lib/estados'
+import Badge from '@/components/ui/Badge'
+import Table from '@/components/ui/Table'
+import Skeleton from '@/components/ui/Skeleton'
+import EmptyState from '@/components/ui/EmptyState'
+import Card from '@/components/ui/Card'
+import { cn } from '@/lib/cn'
 
 export default function ListaCotizaciones() {
   const { data, isLoading } = useCotizaciones()
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Cotizaciones</h1>
-        <Link href="/cotizaciones/nueva" className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white">
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-semibold text-fg">Cotizaciones</h1>
+        <Link
+          href="/cotizaciones/nueva"
+          className={cn(
+            'inline-flex items-center gap-2 rounded-lg font-medium h-10 px-4 text-sm',
+            'bg-primary text-primary-fg hover:bg-primary-hover',
+            'transition-colors duration-150',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg',
+          )}
+        >
+          <Plus size={16} />
           Nueva cotización
         </Link>
       </div>
 
-      {isLoading ? (
-        <p className="text-sm text-gray-500">Cargando…</p>
-      ) : (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-200 text-left text-gray-500">
-              <th className="py-2">Número</th>
-              <th className="py-2">Fecha</th>
-              <th className="py-2">Cliente</th>
-              <th className="py-2">Estado</th>
-              <th className="py-2 text-right">Total</th>
+      <Card>
+        <Table>
+          <Table.Head>
+            <tr>
+              <Table.HeaderCell>Número</Table.HeaderCell>
+              <Table.HeaderCell>Fecha</Table.HeaderCell>
+              <Table.HeaderCell>Cliente</Table.HeaderCell>
+              <Table.HeaderCell>Estado</Table.HeaderCell>
+              <Table.HeaderCell align="right">Total</Table.HeaderCell>
             </tr>
-          </thead>
-          <tbody>
-            {data?.items.map((c) => (
-              <tr key={c.id} className="border-b border-gray-100 hover:bg-gray-50">
-                <td className="py-2">
-                  <Link href={`/cotizaciones/${c.id}`} className="text-blue-600 hover:underline">
-                    {c.prefix}-{c.numero}
-                  </Link>
-                </td>
-                <td className="py-2">{formatFecha(c.fecha)}</td>
-                <td className="py-2">{c.clienteName}</td>
-                <td className="py-2">
-                  <span className={`rounded-full px-2 py-0.5 text-xs ${COLOR[c.estado] ?? ''}`}>{c.estado}</span>
-                </td>
-                <td className="py-2 text-right">{formatCOP(c.payableAmount)}</td>
-              </tr>
-            ))}
-            {data?.items.length === 0 && (
+          </Table.Head>
+          <Table.Body>
+            {isLoading && (
+              <>
+                <Skeleton.Row cols={5} />
+                <Skeleton.Row cols={5} />
+                <Skeleton.Row cols={5} />
+                <Skeleton.Row cols={5} />
+                <Skeleton.Row cols={5} />
+              </>
+            )}
+            {!isLoading && data?.items.length === 0 && (
               <tr>
-                <td colSpan={5} className="py-4 text-center text-gray-400">Sin cotizaciones</td>
+                <td colSpan={5}>
+                  <EmptyState
+                    title="Sin cotizaciones"
+                    description="Crea tu primera cotización para empezar."
+                    action={
+                      <Link
+                        href="/cotizaciones/nueva"
+                        className={cn(
+                          'inline-flex items-center gap-1.5 rounded-lg font-medium h-8 px-3 text-sm',
+                          'bg-primary text-primary-fg hover:bg-primary-hover',
+                          'transition-colors duration-150',
+                          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg',
+                        )}
+                      >
+                        <Plus size={14} />
+                        Nueva cotización
+                      </Link>
+                    }
+                  />
+                </td>
               </tr>
             )}
-          </tbody>
-        </table>
-      )}
+            {!isLoading && data?.items.map((c) => (
+              <Table.Row key={c.id} hover>
+                <Table.Cell>
+                  <Link
+                    href={`/cotizaciones/${c.id}`}
+                    className="text-primary hover:underline transition-colors duration-150"
+                  >
+                    {c.prefix}-{c.numero}
+                  </Link>
+                </Table.Cell>
+                <Table.Cell>{formatFecha(c.fecha)}</Table.Cell>
+                <Table.Cell>{c.clienteName}</Table.Cell>
+                <Table.Cell>
+                  <Badge variant={estadoBadgeVariant(c.estado)} size="sm">
+                    {c.estado}
+                  </Badge>
+                </Table.Cell>
+                <Table.Cell align="right">{formatCOP(c.payableAmount)}</Table.Cell>
+              </Table.Row>
+            ))}
+          </Table.Body>
+        </Table>
+      </Card>
     </div>
   )
 }

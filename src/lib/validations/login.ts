@@ -1,0 +1,9 @@
+import { z } from 'zod'
+
+export const loginSchema = z.object({
+  email: z.string().min(1, 'Ingresa tu correo').email('Correo inválido'),
+  password: z.string().min(1, 'Ingresa tu contraseña'),
+  recordarme: z.boolean(),
+})
+
+export type LoginInput = z.infer<typeof loginSchema>

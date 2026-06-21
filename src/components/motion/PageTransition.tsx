@@ -1,6 +1,7 @@
 'use client'
 
-import { motion, useReducedMotion } from 'framer-motion'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { usePathname } from 'next/navigation'
 import { slideUp } from '@/lib/motion'
 
 interface PageTransitionProps {
@@ -10,20 +11,24 @@ interface PageTransitionProps {
 
 export default function PageTransition({ children, className }: PageTransitionProps) {
   const reduced = useReducedMotion()
+  const pathname = usePathname()
 
   if (reduced) {
     return <div className={className}>{children}</div>
   }
 
   return (
-    <motion.div
-      className={className}
-      variants={slideUp}
-      initial="hidden"
-      animate="visible"
-      exit="exit"
-    >
-      {children}
-    </motion.div>
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.div
+        key={pathname}
+        className={className}
+        variants={slideUp}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
   )
 }

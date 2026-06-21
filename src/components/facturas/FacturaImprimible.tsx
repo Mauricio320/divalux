@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { useFactura } from '@/hooks/facturas/use-factura'
 import { formatCOP, formatFecha } from '@/lib/format'
+import Logo from '@/components/ui/Logo'
 
 export default function FacturaImprimible({ id }: { id: string }) {
   const { data: f, isLoading } = useFactura(id)
@@ -11,52 +12,73 @@ export default function FacturaImprimible({ id }: { id: string }) {
     if (f) setTimeout(() => window.print(), 300)
   }, [f])
 
-  if (isLoading || !f) return <p className="p-8 text-sm text-gray-500">Cargando…</p>
+  if (isLoading || !f) {
+    return (
+      <p className="p-8 text-sm text-neutro-600">Cargando…</p>
+    )
+  }
 
   return (
-    <div className="mx-auto max-w-2xl bg-white p-8 text-sm text-gray-900">
-      <div className="mb-6 flex items-start justify-between">
-        <div>
-          <h1 className="text-xl font-bold">Factura de venta</h1>
-          <p>{f.prefix ?? ''}{f.numero ?? '(borrador)'}</p>
+    <div className="mx-auto max-w-2xl bg-white p-8 text-sm text-neutro-900">
+      <div className="mb-8 flex items-start justify-between">
+        <Logo variant="full" width={150} priority />
+        <div className="text-right">
+          <p className="text-lg font-semibold text-neutro-900">Factura de venta</p>
+          <p className="mt-0.5 text-neutro-700">
+            {f.prefix ?? ''}{f.numero ?? '(borrador)'}
+          </p>
+          <p className="mt-0.5 text-neutro-600">{formatFecha(f.fecha)}</p>
         </div>
-        <p>{formatFecha(f.fecha)}</p>
       </div>
 
-      <div className="mb-4">
-        <p className="font-semibold">Cliente</p>
-        <p>{f.clienteName}</p>
-        <p>ID: {f.clienteIdentificationNumber}</p>
+      <div className="mb-1 border-t border-dorado-400" />
+
+      <div className="mb-6 mt-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-neutro-500">Cliente</p>
+        <p className="mt-1 font-medium text-neutro-900">{f.clienteName}</p>
+        <p className="text-neutro-600">Identificación: {f.clienteIdentificationNumber}</p>
       </div>
 
-      <table className="mb-4 w-full border-collapse text-sm">
+      <table className="mb-6 w-full border-collapse text-sm">
         <thead>
-          <tr className="border-y border-gray-400 text-left">
-            <th className="py-1">Producto</th>
-            <th className="py-1 text-right">Cant.</th>
-            <th className="py-1 text-right">Precio</th>
-            <th className="py-1 text-right">Subtotal</th>
+          <tr className="border-y border-neutro-300 text-left">
+            <th className="py-2 pr-2 font-semibold text-neutro-700">Producto</th>
+            <th className="py-2 px-2 text-right font-semibold text-neutro-700">Cant.</th>
+            <th className="py-2 px-2 text-right font-semibold text-neutro-700">Precio unit.</th>
+            <th className="py-2 pl-2 text-right font-semibold text-neutro-700">Subtotal</th>
           </tr>
         </thead>
         <tbody>
           {f.lineas.map((l) => (
-            <tr key={l.id} className="border-b border-gray-200">
-              <td className="py-1">{l.code} — {l.description}</td>
-              <td className="py-1 text-right">{l.invoicedQuantity}</td>
-              <td className="py-1 text-right">{formatCOP(l.priceAmount)}</td>
-              <td className="py-1 text-right">{formatCOP(l.lineExtensionAmount)}</td>
+            <tr key={l.id} className="border-b border-neutro-200">
+              <td className="py-1.5 pr-2 text-neutro-900">{l.code} — {l.description}</td>
+              <td className="py-1.5 px-2 text-right text-neutro-700">{l.invoicedQuantity}</td>
+              <td className="py-1.5 px-2 text-right text-neutro-700">{formatCOP(l.priceAmount)}</td>
+              <td className="py-1.5 pl-2 text-right text-neutro-900">{formatCOP(l.lineExtensionAmount)}</td>
             </tr>
           ))}
         </tbody>
       </table>
 
-      <div className="ml-auto max-w-xs space-y-1">
-        <div className="flex justify-between"><span>Subtotal</span><span>{formatCOP(f.totales.lineExtensionAmount)}</span></div>
-        <div className="flex justify-between"><span>IVA</span><span>{formatCOP(f.totales.taxInclusiveAmount - f.totales.lineExtensionAmount)}</span></div>
-        <div className="flex justify-between border-t border-gray-400 pt-1 font-bold"><span>Total</span><span>{formatCOP(f.totales.payableAmount)}</span></div>
+      <div className="ml-auto max-w-xs space-y-1.5">
+        <div className="flex justify-between text-neutro-700">
+          <span>Subtotal</span>
+          <span>{formatCOP(f.totales.lineExtensionAmount)}</span>
+        </div>
+        <div className="flex justify-between text-neutro-700">
+          <span>IVA</span>
+          <span>{formatCOP(f.totales.taxInclusiveAmount - f.totales.lineExtensionAmount)}</span>
+        </div>
+        <div className="border-t border-dorado-400 pt-1.5" />
+        <div className="flex justify-between font-bold text-neutro-900">
+          <span>Total</span>
+          <span>{formatCOP(f.totales.payableAmount)}</span>
+        </div>
       </div>
 
-      {f.notes && <p className="mt-6 text-xs text-gray-600">{f.notes}</p>}
+      {f.notes && (
+        <p className="mt-8 text-xs text-neutro-600">{f.notes}</p>
+      )}
     </div>
   )
 }

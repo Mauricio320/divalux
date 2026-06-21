@@ -40,6 +40,7 @@ export const authConfig: NextAuthConfig = {
         token.id = user.id as string
         token.role = (user as { role?: string }).role as string
         token.organizacionId = (user as { organizacionId?: string | null }).organizacionId ?? null
+        token.recordarme = (user as { recordarme?: boolean }).recordarme ?? false
       }
       return token
     },

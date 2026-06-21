@@ -1,8 +1,13 @@
-import type { Transition, Variants } from 'framer-motion'
+import type { TargetAndTransition, Transition, Variants } from 'framer-motion'
 
 export const TRANSITION: Transition = {
   duration: 0.2,
   ease: [0.22, 1, 0.36, 1],
+}
+
+export const infiniteEase: Transition = {
+  repeat: Infinity,
+  ease: 'easeInOut',
 }
 
 export const fadeIn: Variants = {
@@ -26,6 +31,12 @@ export const overlayFade: Variants = {
   hidden: { opacity: 0 },
   visible: { opacity: 1, transition: { duration: 0.15, ease: 'easeOut' } },
   exit: { opacity: 0, transition: { duration: 0.15, ease: 'easeIn' } },
+}
+
+export const drawerLeft: Variants = {
+  hidden: { x: '-100%' },
+  visible: { x: 0, transition: { duration: 0.25, ease: [0.22, 1, 0.36, 1] } },
+  exit: { x: '-100%', transition: { duration: 0.2, ease: 'easeIn' } },
 }
 
 export const modalPanel: Variants = {
@@ -58,4 +69,32 @@ export const toastIn: Variants = {
     scale: 0.97,
     transition: { duration: 0.15, ease: 'easeIn' },
   },
+}
+
+export const staggerContainer: Variants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.08, delayChildren: 0.05 } },
+}
+
+export const staggerItem: Variants = {
+  hidden: { opacity: 0, y: 14, scale: 0.98 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1] },
+  },
+}
+
+export const shake: Variants = {
+  idle: { x: 0 },
+  shake: {
+    x: [0, -6, 6, -4, 4, 0],
+    transition: { duration: 0.4, ease: 'easeInOut' },
+  },
+}
+
+export const breathe: TargetAndTransition = {
+  scale: [1, 1.015, 1],
+  transition: { duration: 8, repeat: Infinity, ease: 'easeInOut' },
 }

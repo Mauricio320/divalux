@@ -2,76 +2,147 @@
 
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { UserPlus } from 'lucide-react'
 import { useEmpresa } from '@/hooks/admin/use-empresa'
 import { useUsuarios } from '@/hooks/admin/use-usuarios'
 import { useCrearUsuario } from '@/hooks/admin/use-crear-usuario'
 import { crearUsuarioSchema, type CrearUsuarioInput } from '@/lib/validations/usuario'
-
-const campo = 'w-full rounded-md border border-gray-300 px-3 py-2 text-sm'
+import { useToast } from '@/hooks/ui/useToast'
+import { estadoBadgeVariant } from '@/lib/estados'
+import Card from '@/components/ui/Card'
+import Field from '@/components/ui/Field'
+import Input from '@/components/ui/Input'
+import Select from '@/components/ui/Select'
+import Button from '@/components/ui/Button'
+import Table from '@/components/ui/Table'
+import Badge from '@/components/ui/Badge'
+import EmptyState from '@/components/ui/EmptyState'
+import Skeleton from '@/components/ui/Skeleton'
 
 export default function AdminClient() {
   const { data: empresa } = useEmpresa()
-  const { data: usuarios } = useUsuarios()
+  const { data: usuarios, isLoading: loadingUsuarios } = useUsuarios()
   const crear = useCrearUsuario()
+  const { toast } = useToast()
   const { register, handleSubmit, reset, formState } = useForm<CrearUsuarioInput>({
     resolver: zodResolver(crearUsuarioSchema),
     defaultValues: { role: 'VENDEDOR' },
   })
 
   async function onSubmit(data: CrearUsuarioInput) {
-    await crear.mutateAsync(data)
-    reset({ nombre: '', email: '', password: '', role: 'VENDEDOR' })
+    try {
+      await crear.mutateAsync(data)
+      reset({ nombre: '', email: '', password: '', role: 'VENDEDOR' })
+      toast({ type: 'success', message: 'Usuario creado correctamente' })
+    } catch (err) {
+      toast({ type: 'error', message: err instanceof Error ? err.message : 'Error al crear usuario' })
+    }
   }
 
   return (
-    <div>
-      <h1 className="mb-4 text-2xl font-bold text-gray-900">Administración</h1>
+    <div className="space-y-6">
+      <h1 className="text-2xl font-semibold text-fg">Administración</h1>
 
       {empresa && (
-        <div className="mb-6 rounded-lg border border-gray-200 p-4 text-sm">
-          <p className="font-semibold text-gray-900">{empresa.nombre}</p>
-          <p className="text-gray-600">{empresa.razonSocial}</p>
-          <p className="text-gray-600">NIT: {empresa.nit}-{empresa.dv}</p>
-        </div>
+        <Card>
+          <Card.Body>
+            <p className="text-base font-semibold text-fg">{empresa.nombre}</p>
+            <p className="text-sm text-fg-muted">{empresa.razonSocial}</p>
+            <p className="text-sm text-fg-muted">NIT: {empresa.nit}-{empresa.dv}</p>
+          </Card.Body>
+        </Card>
       )}
 
-      <h2 className="mb-2 text-sm font-semibold text-gray-700">Usuarios</h2>
-      <form onSubmit={handleSubmit(onSubmit)} className="mb-4 grid grid-cols-2 gap-3 rounded-lg border border-gray-200 p-4 md:grid-cols-4">
-        <input {...register('nombre')} placeholder="Nombre" className={campo} />
-        <input type="email" {...register('email')} placeholder="Correo" className={campo} />
-        <input type="password" {...register('password')} placeholder="Contraseña" className={campo} />
-        <select {...register('role')} className={campo}>
-          <option value="VENDEDOR">Vendedor</option>
-          <option value="ADMIN">Administrador</option>
-        </select>
-        {formState.errors.password && <p className="col-span-full text-xs text-red-600">{formState.errors.password.message}</p>}
-        <div className="md:col-span-4">
-          <button type="submit" disabled={formState.isSubmitting} className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
-            Crear usuario
-          </button>
-        </div>
-      </form>
+      <Card>
+        <Card.Header title="Usuarios" subtitle="Gestión de accesos al sistema" />
+        <Card.Body>
+          <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Field label="Nombre" htmlFor="nombre" required error={formState.errors.nombre?.message}>
+              <Input
+                id="nombre"
+                {...register('nombre')}
+                placeholder="Nombre completo"
+                error={!!formState.errors.nombre}
+              />
+            </Field>
+            <Field label="Correo" htmlFor="email" required error={formState.errors.email?.message}>
+              <Input
+                id="email"
+                type="email"
+                {...register('email')}
+                placeholder="correo@empresa.com"
+                error={!!formState.errors.email}
+              />
+            </Field>
+            <Field label="Contraseña" htmlFor="password" required error={formState.errors.password?.message}>
+              <Input
+                id="password"
+                type="password"
+                {...register('password')}
+                placeholder="Contraseña"
+                error={!!formState.errors.password}
+              />
+            </Field>
+            <Field label="Rol" htmlFor="role" required>
+              <Select id="role" {...register('role')}>
+                <option value="VENDEDOR">Vendedor</option>
+                <option value="ADMIN">Administrador</option>
+              </Select>
+            </Field>
+            <div className="sm:col-span-2 lg:col-span-4">
+              <Button
+                type="submit"
+                variant="primary"
+                size="md"
+                isLoading={formState.isSubmitting}
+                leftIcon={<UserPlus size={16} />}
+              >
+                Crear usuario
+              </Button>
+            </div>
+          </form>
+        </Card.Body>
+      </Card>
 
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-gray-200 text-left text-gray-500">
-            <th className="py-2">Nombre</th>
-            <th className="py-2">Correo</th>
-            <th className="py-2">Rol</th>
-            <th className="py-2">Estado</th>
+      <Table>
+        <Table.Head>
+          <tr>
+            <Table.HeaderCell>Nombre</Table.HeaderCell>
+            <Table.HeaderCell>Correo</Table.HeaderCell>
+            <Table.HeaderCell>Rol</Table.HeaderCell>
+            <Table.HeaderCell>Estado</Table.HeaderCell>
           </tr>
-        </thead>
-        <tbody>
-          {usuarios?.map((u) => (
-            <tr key={u.id} className="border-b border-gray-100">
-              <td className="py-2">{u.nombre}</td>
-              <td className="py-2">{u.email}</td>
-              <td className="py-2">{u.role}</td>
-              <td className="py-2">{u.activo ? 'Activo' : 'Inactivo'}</td>
-            </tr>
+        </Table.Head>
+        <Table.Body>
+          {loadingUsuarios && (
+            <>
+              <Skeleton.Row cols={4} />
+              <Skeleton.Row cols={4} />
+              <Skeleton.Row cols={4} />
+              <Skeleton.Row cols={4} />
+            </>
+          )}
+          {!loadingUsuarios && usuarios?.map((u) => (
+            <Table.Row key={u.id} zebra>
+              <Table.Cell>{u.nombre}</Table.Cell>
+              <Table.Cell>{u.email}</Table.Cell>
+              <Table.Cell>{u.role}</Table.Cell>
+              <Table.Cell>
+                <Badge variant={estadoBadgeVariant(u.activo ? 'APROBADA' : 'ANULADA')} size="sm">
+                  {u.activo ? 'Activo' : 'Inactivo'}
+                </Badge>
+              </Table.Cell>
+            </Table.Row>
           ))}
-        </tbody>
-      </table>
+        </Table.Body>
+      </Table>
+
+      {!loadingUsuarios && (!usuarios || usuarios.length === 0) && (
+        <EmptyState
+          title="Sin usuarios registrados"
+          description="Crea el primer usuario usando el formulario anterior."
+        />
+      )}
     </div>
   )
 }

@@ -6,8 +6,8 @@ type Variant = 'mark' | 'full' | 'full-white'
 
 const SRC: Record<Variant, string> = {
   mark: '/brand/divailux-mark.svg',
-  full: '/brand/divailux-full.svg',
-  'full-white': '/brand/divailux-full-white.svg',
+  full: '/divailux-lockup/divailux-lockup-h.png',
+  'full-white': '/divailux-lockup/divailux-lockup-h-white.png',
 }
 
 const INTRINSIC: Record<Variant, { width: number; height: number }> = {

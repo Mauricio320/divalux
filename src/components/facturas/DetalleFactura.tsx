@@ -1,111 +1,182 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
 import { useFactura } from '@/hooks/facturas/use-factura'
 import { useConfirmarFactura } from '@/hooks/facturas/use-confirmar-factura'
 import { useAnularFactura } from '@/hooks/facturas/use-anular-factura'
 import { formatCOP, formatFecha } from '@/lib/format'
+import { estadoBadgeVariant } from '@/lib/estados'
+import { useToast } from '@/hooks/ui/useToast'
+import Button from '@/components/ui/Button'
+import Badge from '@/components/ui/Badge'
+import Card from '@/components/ui/Card'
+import Table from '@/components/ui/Table'
+import Skeleton from '@/components/ui/Skeleton'
+import { cn } from '@/lib/cn'
+import { Printer } from 'lucide-react'
 
 export default function DetalleFactura({ id, esAdmin }: { id: string; esAdmin: boolean }) {
   const { data: f, isLoading } = useFactura(id)
   const confirmar = useConfirmarFactura()
   const anular = useAnularFactura()
-  const [error, setError] = useState('')
+  const { toast } = useToast()
 
-  if (isLoading || !f) return <p className="text-sm text-gray-500">Cargando…</p>
+  if (isLoading || !f) {
+    return (
+      <div className="max-w-3xl space-y-4">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-4 w-40" />
+        <Card padding>
+          <Skeleton.Text lines={3} />
+        </Card>
+      </div>
+    )
+  }
 
   async function onConfirmar() {
-    setError('')
     try {
       await confirmar.mutateAsync(id)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo confirmar')
+      toast({ type: 'error', message: e instanceof Error ? e.message : 'No se pudo confirmar' })
     }
   }
 
   async function onAnular() {
-    setError('')
     try {
       await anular.mutateAsync({ facturaId: id })
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo anular')
+      toast({ type: 'error', message: e instanceof Error ? e.message : 'No se pudo anular' })
     }
   }
 
   return (
-    <div className="max-w-3xl">
-      <div className="mb-4 flex items-center justify-between">
+    <div className="max-w-3xl space-y-6">
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            Factura {f.prefix ?? ''}{f.numero ?? '(borrador)'}
-          </h1>
-          <p className="text-sm text-gray-500">{formatFecha(f.fecha)} · {f.estado}</p>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-semibold text-fg">
+              Factura {f.prefix ?? ''}{f.numero ?? '(borrador)'}
+            </h1>
+            <Badge variant={estadoBadgeVariant(f.estado)} size="md">
+              {f.estado}
+            </Badge>
+          </div>
+          <p className="mt-1 text-sm text-fg-muted">{formatFecha(f.fecha)}</p>
         </div>
-        <div className="flex gap-2">
+
+        <div className="flex shrink-0 flex-wrap gap-2">
           {f.estado === 'BORRADOR' && (
-            <button onClick={onConfirmar} disabled={confirmar.isPending} className="rounded-md bg-green-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
+            <Button
+              variant="primary"
+              size="md"
+              isLoading={confirmar.isPending}
+              onClick={onConfirmar}
+            >
               Confirmar
-            </button>
+            </Button>
           )}
-          <button disabled title="Disponible en fase 2" className="cursor-not-allowed rounded-md bg-gray-200 px-4 py-2 text-sm font-medium text-gray-500">
+
+          <Button
+            variant="secondary"
+            size="md"
+            disabled
+            title="Disponible en fase 2"
+          >
             Emitir a DIAN
-          </button>
+          </Button>
+
           {f.estado === 'CONFIRMADA' && (
-            <Link href={`/facturas/${id}/imprimir`} className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700">
+            <Link
+              href={`/facturas/${id}/imprimir`}
+              className={cn(
+                'inline-flex items-center gap-2 rounded-lg font-medium h-10 px-4 text-sm',
+                'bg-surface text-fg border border-border-strong hover:bg-surface-2',
+                'transition-colors duration-150',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg',
+              )}
+            >
+              <Printer size={16} />
               Imprimir
             </Link>
           )}
+
           {esAdmin && f.estado !== 'ANULADA' && (
-            <button onClick={onAnular} disabled={anular.isPending} className="rounded-md border border-red-300 px-4 py-2 text-sm font-medium text-red-600 disabled:opacity-50">
+            <Button
+              variant="danger"
+              size="md"
+              isLoading={anular.isPending}
+              onClick={onAnular}
+            >
               Anular
-            </button>
+            </Button>
           )}
         </div>
       </div>
 
-      {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+      <Card>
+        <Card.Body>
+          <p className="font-semibold text-fg">{f.clienteName}</p>
+          <p className="mt-0.5 text-sm text-fg-muted">ID: {f.clienteIdentificationNumber}</p>
+          <p className="mt-0.5 text-sm text-fg-muted">
+            Bodega: {f.bodegaNombre} · Vendedor: {f.vendedorNombre}
+          </p>
+        </Card.Body>
+      </Card>
 
-      <div className="mb-4 rounded-lg border border-gray-200 p-4 text-sm">
-        <p className="font-semibold text-gray-900">{f.clienteName}</p>
-        <p className="text-gray-600">ID: {f.clienteIdentificationNumber}</p>
-        <p className="text-gray-600">Bodega: {f.bodegaNombre} · Vendedor: {f.vendedorNombre}</p>
-      </div>
-
-      <table className="mb-4 w-full text-sm">
-        <thead>
-          <tr className="border-b border-gray-200 text-left text-gray-500">
-            <th className="py-2">Producto</th>
-            <th className="py-2 text-right">Cant.</th>
-            <th className="py-2 text-right">Precio</th>
-            <th className="py-2 text-right">Subtotal</th>
+      <Table>
+        <Table.Head>
+          <tr>
+            <Table.HeaderCell>Producto</Table.HeaderCell>
+            <Table.HeaderCell align="right">Cant.</Table.HeaderCell>
+            <Table.HeaderCell align="right">Precio</Table.HeaderCell>
+            <Table.HeaderCell align="right">Subtotal</Table.HeaderCell>
           </tr>
-        </thead>
-        <tbody>
+        </Table.Head>
+        <Table.Body>
           {f.lineas.map((l) => (
-            <tr key={l.id} className="border-b border-gray-100">
-              <td className="py-2">{l.code} — {l.description}</td>
-              <td className="py-2 text-right">{l.invoicedQuantity}</td>
-              <td className="py-2 text-right">{formatCOP(l.priceAmount)}</td>
-              <td className="py-2 text-right">{formatCOP(l.lineExtensionAmount)}</td>
-            </tr>
+            <Table.Row key={l.id}>
+              <Table.Cell>{l.code} — {l.description}</Table.Cell>
+              <Table.Cell align="right">{l.invoicedQuantity}</Table.Cell>
+              <Table.Cell align="right">{formatCOP(l.priceAmount)}</Table.Cell>
+              <Table.Cell align="right">{formatCOP(l.lineExtensionAmount)}</Table.Cell>
+            </Table.Row>
           ))}
-        </tbody>
-      </table>
+        </Table.Body>
+      </Table>
 
-      <div className="ml-auto max-w-xs space-y-1 text-sm">
-        <div className="flex justify-between"><span className="text-gray-600">Subtotal</span><span>{formatCOP(f.totales.lineExtensionAmount)}</span></div>
-        <div className="flex justify-between"><span className="text-gray-600">IVA</span><span>{formatCOP(f.totales.taxInclusiveAmount - f.totales.lineExtensionAmount)}</span></div>
-        {f.totales.allowanceTotalAmount > 0 && <div className="flex justify-between"><span className="text-gray-600">Descuentos</span><span>-{formatCOP(f.totales.allowanceTotalAmount)}</span></div>}
-        <div className="flex justify-between border-t border-gray-200 pt-1 font-bold"><span>Total</span><span>{formatCOP(f.totales.payableAmount)}</span></div>
+      <div className="ml-auto max-w-xs space-y-1.5 text-sm">
+        <div className="flex justify-between">
+          <span className="text-fg-muted">Subtotal</span>
+          <span className="text-fg">{formatCOP(f.totales.lineExtensionAmount)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-fg-muted">IVA</span>
+          <span className="text-fg">{formatCOP(f.totales.taxInclusiveAmount - f.totales.lineExtensionAmount)}</span>
+        </div>
+        {f.totales.allowanceTotalAmount > 0 && (
+          <div className="flex justify-between">
+            <span className="text-fg-muted">Descuentos</span>
+            <span className="text-fg">-{formatCOP(f.totales.allowanceTotalAmount)}</span>
+          </div>
+        )}
+        <div className="flex justify-between border-t border-gold pt-2 font-semibold">
+          <span className="text-fg">Total</span>
+          <span className="text-fg">{formatCOP(f.totales.payableAmount)}</span>
+        </div>
       </div>
 
-      <details className="mt-6">
-        <summary className="cursor-pointer text-sm text-gray-500">Vista previa del payload Nextpyme (fase 2)</summary>
-        <pre className="mt-2 max-h-96 overflow-auto rounded-md bg-gray-900 p-4 text-xs text-gray-100">
-          {JSON.stringify(f.payloadNextpyme, null, 2)}
-        </pre>
-      </details>
+      <Card>
+        <Card.Body>
+          <details>
+            <summary className="cursor-pointer select-none text-sm text-fg-muted">
+              Vista previa del payload Nextpyme (fase 2)
+            </summary>
+            <pre className="mt-3 max-h-96 overflow-auto rounded-lg bg-neutro-900 p-4 text-xs text-neutro-100">
+              {JSON.stringify(f.payloadNextpyme, null, 2)}
+            </pre>
+          </details>
+        </Card.Body>
+      </Card>
     </div>
   )
 }

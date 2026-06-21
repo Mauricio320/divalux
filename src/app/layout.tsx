@@ -33,7 +33,7 @@ export const metadata: Metadata = {
   manifest: '/manifest.webmanifest',
 }
 
-const antiFlashScript = `(function(){try{var t=localStorage.getItem('tema');if(t==='dark'){document.documentElement.classList.add('dark')}else if(t==='light'){document.documentElement.classList.remove('dark')}else if(window.matchMedia('(prefers-color-scheme: dark)').matches){document.documentElement.classList.add('dark')}}catch(e){}})();`
+const antiFlashScript = `(function(){try{if(localStorage.getItem('tema')==='dark'){document.documentElement.classList.add('dark')}else{document.documentElement.classList.remove('dark')}}catch(e){}})();`
 
 export default function RootLayout({
   children,

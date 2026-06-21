@@ -9,6 +9,8 @@ export const productoSchema = z.object({
   taxId: z.number().int().default(1),
   percent: z.number().min(0).default(0),
   controlaStock: z.boolean().default(true),
+  imagenUrl: z.string().url('URL de imagen inválida').nullish(),
+  imagenPublicId: z.string().nullish(),
 })
 
 export const editarProductoSchema = productoSchema.extend({

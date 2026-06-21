@@ -3,139 +3,211 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Printer } from 'lucide-react'
 import { useCotizacion } from '@/hooks/cotizaciones/use-cotizacion'
 import { useCambiarEstadoCotizacion } from '@/hooks/cotizaciones/use-cambiar-estado-cotizacion'
 import { useConvertirAFactura } from '@/hooks/cotizaciones/use-convertir-a-factura'
 import { useBodegas } from '@/hooks/bodegas/use-bodegas'
+import { useToast } from '@/hooks/ui/useToast'
 import { SelectBuscador } from '@/components/ui/SelectBuscador'
+import { estadoBadgeVariant } from '@/lib/estados'
 import { formatCOP, formatFecha } from '@/lib/format'
+import Badge from '@/components/ui/Badge'
+import Button from '@/components/ui/Button'
+import Card from '@/components/ui/Card'
+import Table from '@/components/ui/Table'
+import Skeleton from '@/components/ui/Skeleton'
+import { cn } from '@/lib/cn'
 
 export default function DetalleCotizacion({ id }: { id: string }) {
   const router = useRouter()
+  const { toast } = useToast()
   const { data: c, isLoading } = useCotizacion(id)
   const { data: bodegas } = useBodegas()
   const cambiar = useCambiarEstadoCotizacion()
   const convertir = useConvertirAFactura()
   const [bodegaId, setBodegaId] = useState<string | ''>('')
-  const [error, setError] = useState('')
 
-  if (isLoading || !c) return <p className="text-sm text-gray-500">Cargando…</p>
+  if (isLoading || !c) {
+    return (
+      <div className="max-w-3xl space-y-4">
+        <Card padding>
+          <Skeleton.Text lines={2} />
+        </Card>
+      </div>
+    )
+  }
 
   const convertible = !c.facturaGeneradaId && c.estado !== 'RECHAZADA' && c.estado !== 'VENCIDA'
 
   async function cambiarEstado(estado: 'ENVIADA' | 'APROBADA' | 'RECHAZADA') {
-    setError('')
     try {
       await cambiar.mutateAsync({ cotizacionId: id, estado })
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo cambiar el estado')
+      toast({ type: 'error', message: e instanceof Error ? e.message : 'No se pudo cambiar el estado' })
     }
   }
 
   async function onConvertir() {
-    setError('')
     if (!bodegaId) {
-      setError('Selecciona una bodega para la factura')
+      toast({ type: 'error', message: 'Selecciona una bodega para la factura' })
       return
     }
     try {
       const res = await convertir.mutateAsync({ cotizacionId: id, bodegaId })
       router.push(`/facturas/${res.facturaId}`)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo convertir')
+      toast({ type: 'error', message: e instanceof Error ? e.message : 'No se pudo convertir' })
     }
   }
 
   return (
-    <div className="max-w-3xl">
-      <div className="mb-4 flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Cotización {c.prefix}-{c.numero}</h1>
-          <p className="text-sm text-gray-500">
-            {formatFecha(c.fecha)} · {c.estado}
+    <div className="max-w-3xl space-y-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-semibold text-fg">
+              Cotización {c.prefix}-{c.numero}
+            </h1>
+            <Badge variant={estadoBadgeVariant(c.estado)} size="md">
+              {c.estado}
+            </Badge>
+          </div>
+          <p className="mt-1 text-sm text-fg-muted">
+            {formatFecha(c.fecha)}
             {c.validezHasta ? ` · válida hasta ${formatFecha(c.validezHasta)}` : ''}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           {c.estado === 'BORRADOR' && (
-            <button onClick={() => cambiarEstado('ENVIADA')} disabled={cambiar.isPending} className="rounded-md border border-gray-300 px-3 py-2 text-sm">
+            <Button
+              variant="secondary"
+              size="sm"
+              isLoading={cambiar.isPending}
+              onClick={() => cambiarEstado('ENVIADA')}
+            >
               Marcar enviada
-            </button>
+            </Button>
           )}
           {convertible && (
-            <button onClick={() => cambiarEstado('RECHAZADA')} disabled={cambiar.isPending} className="rounded-md border border-red-300 px-3 py-2 text-sm text-red-600">
+            <Button
+              variant="danger"
+              size="sm"
+              isLoading={cambiar.isPending}
+              onClick={() => cambiarEstado('RECHAZADA')}
+            >
               Rechazar
-            </button>
+            </Button>
           )}
-          <Link href={`/cotizaciones/${id}/imprimir`} className="rounded-md border border-gray-300 px-3 py-2 text-sm">
+          <Link
+            href={`/cotizaciones/${id}/imprimir`}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-lg font-medium h-8 px-3 text-sm',
+              'bg-surface text-fg border border-border-strong hover:bg-surface-2',
+              'transition-colors duration-150',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg',
+            )}
+          >
+            <Printer size={14} />
             Imprimir
           </Link>
         </div>
       </div>
 
       {c.facturaGeneradaId && (
-        <p className="mb-3 text-sm text-green-700">
+        <p className="text-sm text-fg-muted">
           Convertida a factura.{' '}
-          <Link href={`/facturas/${c.facturaGeneradaId}`} className="text-blue-600 hover:underline">
+          <Link
+            href={`/facturas/${c.facturaGeneradaId}`}
+            className="text-primary hover:underline transition-colors duration-150"
+          >
             Ver factura
           </Link>
         </p>
       )}
 
-      <div className="mb-4 rounded-lg border border-gray-200 p-4 text-sm">
-        <p className="font-semibold text-gray-900">{c.clienteName}</p>
-        <p className="text-gray-600">ID: {c.clienteIdentificationNumber} · Vendedor: {c.vendedorNombre}</p>
-      </div>
+      <Card>
+        <Card.Header title="Datos del cliente" />
+        <Card.Body>
+          <p className="text-sm font-semibold text-fg">{c.clienteName}</p>
+          <p className="mt-0.5 text-sm text-fg-muted">
+            ID: {c.clienteIdentificationNumber} · Vendedor: {c.vendedorNombre}
+          </p>
+        </Card.Body>
+      </Card>
 
-      <table className="mb-4 w-full text-sm">
-        <thead>
-          <tr className="border-b border-gray-200 text-left text-gray-500">
-            <th className="py-2">Producto</th>
-            <th className="py-2 text-right">Cant.</th>
-            <th className="py-2 text-right">Precio</th>
-            <th className="py-2 text-right">Subtotal</th>
-          </tr>
-        </thead>
-        <tbody>
-          {c.lineas.map((l) => (
-            <tr key={l.id} className="border-b border-gray-100">
-              <td className="py-2">{l.code} — {l.description}</td>
-              <td className="py-2 text-right">{l.invoicedQuantity}</td>
-              <td className="py-2 text-right">{formatCOP(l.priceAmount)}</td>
-              <td className="py-2 text-right">{formatCOP(l.lineExtensionAmount)}</td>
+      <Card>
+        <Card.Header title="Líneas" />
+        <Table>
+          <Table.Head>
+            <tr>
+              <Table.HeaderCell>Producto</Table.HeaderCell>
+              <Table.HeaderCell align="right">Cant.</Table.HeaderCell>
+              <Table.HeaderCell align="right">Precio</Table.HeaderCell>
+              <Table.HeaderCell align="right">Subtotal</Table.HeaderCell>
             </tr>
-          ))}
-        </tbody>
-      </table>
-
-      <div className="ml-auto mb-6 max-w-xs space-y-1 text-sm">
-        <div className="flex justify-between"><span className="text-gray-600">Subtotal</span><span>{formatCOP(c.totales.lineExtensionAmount)}</span></div>
-        <div className="flex justify-between"><span className="text-gray-600">IVA</span><span>{formatCOP(c.totales.taxInclusiveAmount - c.totales.lineExtensionAmount)}</span></div>
-        {c.totales.allowanceTotalAmount > 0 && <div className="flex justify-between"><span className="text-gray-600">Descuentos</span><span>-{formatCOP(c.totales.allowanceTotalAmount)}</span></div>}
-        <div className="flex justify-between border-t border-gray-200 pt-1 font-bold"><span>Total</span><span>{formatCOP(c.totales.payableAmount)}</span></div>
-      </div>
+          </Table.Head>
+          <Table.Body>
+            {c.lineas.map((l) => (
+              <Table.Row key={l.id} hover={false}>
+                <Table.Cell>{l.code} — {l.description}</Table.Cell>
+                <Table.Cell align="right">{l.invoicedQuantity}</Table.Cell>
+                <Table.Cell align="right">{formatCOP(l.priceAmount)}</Table.Cell>
+                <Table.Cell align="right">{formatCOP(l.lineExtensionAmount)}</Table.Cell>
+              </Table.Row>
+            ))}
+          </Table.Body>
+        </Table>
+        <Card.Footer>
+          <div className="ml-auto max-w-xs space-y-1.5 text-sm">
+            <div className="flex justify-between">
+              <span className="text-fg-muted">Subtotal</span>
+              <span className="text-fg">{formatCOP(c.totales.lineExtensionAmount)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-fg-muted">IVA</span>
+              <span className="text-fg">{formatCOP(c.totales.taxInclusiveAmount - c.totales.lineExtensionAmount)}</span>
+            </div>
+            {c.totales.allowanceTotalAmount > 0 && (
+              <div className="flex justify-between">
+                <span className="text-fg-muted">Descuentos</span>
+                <span className="text-fg">-{formatCOP(c.totales.allowanceTotalAmount)}</span>
+              </div>
+            )}
+            <div className="flex justify-between border-t border-gold pt-2 font-semibold text-fg">
+              <span>Total</span>
+              <span>{formatCOP(c.totales.payableAmount)}</span>
+            </div>
+          </div>
+        </Card.Footer>
+      </Card>
 
       {convertible && (
-        <div className="rounded-lg border border-gray-200 p-4">
-          <h2 className="mb-2 text-sm font-semibold text-gray-700">Convertir a factura</h2>
-          <div className="flex items-end gap-3">
-            <div className="w-64">
-              <label className="mb-1 block text-xs text-gray-600">Bodega</label>
-              <SelectBuscador
-                opciones={(bodegas ?? []).map((b) => ({ value: b.id, label: b.nombre }))}
-                value={bodegaId}
-                onChange={(v) => setBodegaId(v)}
-                placeholder="Seleccionar bodega"
-              />
+        <Card>
+          <Card.Header title="Convertir a factura" />
+          <Card.Body>
+            <div className="flex items-end gap-3">
+              <div className="w-64">
+                <SelectBuscador
+                  opciones={(bodegas ?? []).map((b) => ({ value: b.id, label: b.nombre }))}
+                  value={bodegaId}
+                  onChange={(v) => setBodegaId(v)}
+                  placeholder="Seleccionar bodega"
+                />
+              </div>
+              <Button
+                variant="primary"
+                size="md"
+                isLoading={convertir.isPending}
+                onClick={onConvertir}
+              >
+                Convertir a factura
+              </Button>
             </div>
-            <button onClick={onConvertir} disabled={convertir.isPending} className="rounded-md bg-green-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
-              Convertir a factura
-            </button>
-          </div>
-        </div>
+          </Card.Body>
+        </Card>
       )}
-
-      {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
     </div>
   )
 }

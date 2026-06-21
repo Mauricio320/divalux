@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma'
 import { requireOrg } from '@/lib/tenant'
 import { productoSchema, editarProductoSchema, filtrosProductoSchema } from '@/lib/validations/producto'
+import { firmarSubidaImagen, eliminarImagen } from '@/lib/cloudinary'
 import type { Paginado } from '@/lib/validations/paginacion'
 import type { Producto } from '@/generated/prisma/client'
 
@@ -17,6 +18,7 @@ export type ProductoDTO = {
   percent: number
   controlaStock: boolean
   activo: boolean
+  imagenUrl: string | null
 }
 
 function toDTO(p: Producto): ProductoDTO {
@@ -31,7 +33,19 @@ function toDTO(p: Producto): ProductoDTO {
     percent: Number(p.percent),
     controlaStock: p.controlaStock,
     activo: p.activo,
+    imagenUrl: p.imagenUrl,
   }
+}
+
+function imagenNoEsDelTenant(
+  organizacionId: string,
+  imagenUrl?: string | null,
+  imagenPublicId?: string | null,
+): boolean {
+  const prefijo = `productos/${organizacionId}/`
+  if (imagenPublicId != null && !imagenPublicId.startsWith(prefijo)) return true
+  if (imagenUrl != null && !imagenUrl.includes(`/${prefijo}`)) return true
+  return false
 }
 
 export async function listarProductos(raw: unknown) {
@@ -63,21 +77,40 @@ export async function getProducto(id: string) {
   return { success: true as const, data: toDTO(p) }
 }
 
+export async function firmarSubidaImagenProducto() {
+  const session = await requireOrg(['ADMIN'])
+  if (!session.ok) return { success: false as const, error: session.error }
+  try {
+    const data = firmarSubidaImagen(`productos/${session.ctx.organizacionId}`)
+    return { success: true as const, data }
+  } catch {
+    return { success: false as const, error: 'No se pudo preparar la subida de la imagen' }
+  }
+}
+
 export async function crearProducto(raw: unknown) {
   const parsed = productoSchema.safeParse(raw)
   if (!parsed.success) return { success: false as const, error: 'Datos inválidos' }
   const session = await requireOrg(['ADMIN'])
   if (!session.ok) return { success: false as const, error: session.error }
 
+  if (imagenNoEsDelTenant(session.ctx.organizacionId, parsed.data.imagenUrl, parsed.data.imagenPublicId)) {
+    return { success: false as const, error: 'Imagen inválida' }
+  }
+
   const existe = await prisma.producto.findUnique({
     where: { organizacionId_code: { organizacionId: session.ctx.organizacionId, code: parsed.data.code } },
   })
   if (existe) return { success: false as const, error: 'Ya existe un producto con ese código' }
 
-  const p = await prisma.producto.create({
-    data: { ...parsed.data, organizacionId: session.ctx.organizacionId },
-  })
-  return { success: true as const, data: toDTO(p) }
+  try {
+    const p = await prisma.producto.create({
+      data: { ...parsed.data, organizacionId: session.ctx.organizacionId },
+    })
+    return { success: true as const, data: toDTO(p) }
+  } catch {
+    return { success: false as const, error: 'No se pudo guardar el producto' }
+  }
 }
 
 export async function editarProducto(raw: unknown) {
@@ -86,10 +119,27 @@ export async function editarProducto(raw: unknown) {
   const session = await requireOrg(['ADMIN'])
   if (!session.ok) return { success: false as const, error: session.error }
 
+  if (imagenNoEsDelTenant(session.ctx.organizacionId, parsed.data.imagenUrl, parsed.data.imagenPublicId)) {
+    return { success: false as const, error: 'Imagen inválida' }
+  }
+
   const { id, ...rest } = parsed.data
   const actual = await prisma.producto.findFirst({ where: { id, organizacionId: session.ctx.organizacionId } })
   if (!actual) return { success: false as const, error: 'Producto no encontrado' }
 
-  const p = await prisma.producto.update({ where: { id }, data: rest })
-  return { success: true as const, data: toDTO(p) }
+  try {
+    const p = await prisma.producto.update({ where: { id }, data: rest })
+
+    if (actual.imagenPublicId && actual.imagenPublicId !== p.imagenPublicId) {
+      try {
+        await eliminarImagen(actual.imagenPublicId)
+      } catch {
+        // El asset anterior queda huérfano; tolerable en v1, no debe romper la edición.
+      }
+    }
+
+    return { success: true as const, data: toDTO(p) }
+  } catch {
+    return { success: false as const, error: 'No se pudo guardar el producto' }
+  }
 }

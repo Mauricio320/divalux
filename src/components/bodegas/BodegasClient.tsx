@@ -1,74 +1,122 @@
 'use client'
 
+import { useState } from 'react'
+import { Plus } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useBodegas } from '@/hooks/bodegas/use-bodegas'
 import { useCrearBodega } from '@/hooks/bodegas/use-crear-bodega'
 import { bodegaSchema, type BodegaInput } from '@/lib/validations/inventario'
+import Field from '@/components/ui/Field'
+import Input from '@/components/ui/Input'
+import Button from '@/components/ui/Button'
+import Table from '@/components/ui/Table'
+import Skeleton from '@/components/ui/Skeleton'
+import EmptyState from '@/components/ui/EmptyState'
+import Badge from '@/components/ui/Badge'
+import Modal from '@/components/ui/Modal'
 
 export default function BodegasClient() {
   const { data: bodegas, isLoading } = useBodegas()
   const crear = useCrearBodega()
+  const [abierto, setAbierto] = useState(false)
   const { register, handleSubmit, reset, formState } = useForm<BodegaInput>({
     resolver: zodResolver(bodegaSchema),
     defaultValues: { esPrincipal: false },
   })
 
-  async function onSubmit(data: BodegaInput) {
-    await crear.mutateAsync(data)
+  function cerrar() {
+    setAbierto(false)
     reset({ nombre: '', esPrincipal: false })
   }
 
+  async function onSubmit(data: BodegaInput) {
+    await crear.mutateAsync(data)
+    cerrar()
+  }
+
   return (
-    <div>
-      <h1 className="mb-4 text-2xl font-bold text-gray-900">Bodegas</h1>
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-semibold text-fg">Bodegas</h1>
+        <Button leftIcon={<Plus size={16} aria-hidden="true" />} onClick={() => setAbierto(true)}>
+          Nueva bodega
+        </Button>
+      </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="mb-6 flex items-end gap-3 rounded-lg border border-gray-200 p-4">
-        <div className="flex-1">
-          <label className="mb-1 block text-sm font-medium text-gray-700">Nueva bodega</label>
-          <input {...register('nombre')} placeholder="Nombre" className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
-        </div>
-        <label className="flex items-center gap-2 pb-2 text-sm text-gray-700">
-          <input type="checkbox" {...register('esPrincipal')} /> Principal
-        </label>
-        <button
-          type="submit"
-          disabled={formState.isSubmitting}
-          className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-        >
-          Crear
-        </button>
-      </form>
-
-      {isLoading ? (
-        <p className="text-sm text-gray-500">Cargando…</p>
-      ) : (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-200 text-left text-gray-500">
-              <th className="py-2">Nombre</th>
-              <th className="py-2">Principal</th>
-              <th className="py-2">Estado</th>
+      <Table>
+        <Table.Head>
+          <tr>
+            <Table.HeaderCell>Nombre</Table.HeaderCell>
+            <Table.HeaderCell>Principal</Table.HeaderCell>
+            <Table.HeaderCell>Estado</Table.HeaderCell>
+          </tr>
+        </Table.Head>
+        <Table.Body>
+          {isLoading ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton.Row key={i} cols={3} />
+            ))
+          ) : bodegas && bodegas.length > 0 ? (
+            bodegas.map((b) => (
+              <Table.Row key={b.id} zebra>
+                <Table.Cell>{b.nombre}</Table.Cell>
+                <Table.Cell>{b.esPrincipal ? 'Sí' : '—'}</Table.Cell>
+                <Table.Cell>
+                  <Badge variant={b.activo ? 'success' : 'neutral'} size="sm">
+                    {b.activo ? 'Activa' : 'Inactiva'}
+                  </Badge>
+                </Table.Cell>
+              </Table.Row>
+            ))
+          ) : (
+            <tr>
+              <td colSpan={3}>
+                <EmptyState
+                  title="Sin bodegas"
+                  description="Crea la primera bodega con el botón Nueva bodega."
+                  action={
+                    <Button leftIcon={<Plus size={16} aria-hidden="true" />} onClick={() => setAbierto(true)}>
+                      Nueva bodega
+                    </Button>
+                  }
+                />
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {bodegas?.map((b) => (
-              <tr key={b.id} className="border-b border-gray-100">
-                <td className="py-2">{b.nombre}</td>
-                <td className="py-2">{b.esPrincipal ? 'Sí' : '—'}</td>
-                <td className="py-2">{b.activo ? 'Activa' : 'Inactiva'}</td>
-              </tr>
-            ))}
-            {bodegas?.length === 0 && (
-              <tr>
-                <td colSpan={3} className="py-4 text-center text-gray-400">
-                  Sin bodegas
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      )}
+          )}
+        </Table.Body>
+      </Table>
+
+      <Modal open={abierto} onClose={cerrar} title="Nueva bodega" size="md">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <Field label="Nombre" htmlFor="nombre" required error={formState.errors.nombre?.message}>
+            <Input
+              id="nombre"
+              {...register('nombre')}
+              placeholder="Nombre de la bodega"
+              error={!!formState.errors.nombre}
+            />
+          </Field>
+
+          <label className="flex items-center gap-2 text-sm text-fg cursor-pointer select-none">
+            <input
+              type="checkbox"
+              {...register('esPrincipal')}
+              className="h-4 w-4 rounded border-border accent-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg transition-colors duration-150"
+            />
+            Principal
+          </label>
+
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={cerrar}>
+              Cancelar
+            </Button>
+            <Button type="submit" isLoading={formState.isSubmitting}>
+              Crear
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   )
 }

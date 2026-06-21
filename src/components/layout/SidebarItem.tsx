@@ -10,6 +10,7 @@ interface SidebarItemProps {
   icon: LucideIcon
   activo: boolean
   colapsado: boolean
+  onClick?: () => void
 }
 
 export default function SidebarItem({
@@ -18,10 +19,12 @@ export default function SidebarItem({
   icon: Icon,
   activo,
   colapsado,
+  onClick,
 }: SidebarItemProps) {
   return (
     <Link
       href={href}
+      onClick={onClick}
       title={colapsado ? label : undefined}
       aria-current={activo ? 'page' : undefined}
       className={cn(

@@ -182,6 +182,8 @@ model Producto {
   percent            Decimal  @default(0) @db.Decimal(5, 2)
   controlaStock      Boolean  @default(true)
   activo             Boolean  @default(true)
+  imagenUrl          String?
+  imagenPublicId     String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
