@@ -1,7 +1,6 @@
 'use client'
 
 import { motion, useReducedMotion } from 'framer-motion'
-import Logo from '@/components/ui/Logo'
 import BrandPanel from './BrandPanel'
 import LoginForm from './LoginForm'
 
@@ -25,10 +24,9 @@ export default function LoginScreen() {
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
         className="flex min-h-svh flex-col bg-bg"
       >
-        <header className="flex items-center justify-center gap-3 bg-verde-800 px-6 py-5 lg:hidden">
-          <Logo variant="full-white" height={34} priority />
-          <span className="font-serif text-sm text-dorado-200">Poder Natural</span>
-        </header>
+        <div className="lg:hidden">
+          <BrandPanel compact />
+        </div>
 
         <main className="flex flex-1 items-center justify-center px-6 py-10 sm:px-10">
           <LoginForm />
