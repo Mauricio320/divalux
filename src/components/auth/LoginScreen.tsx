@@ -22,9 +22,9 @@ export default function LoginScreen() {
         <FallingLeaves reduced={!!reduced} />
 
         <motion.div
-          initial={reduced ? false : { opacity: 0, y: 18 }}
-          animate={reduced ? false : { opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+          initial={reduced ? false : { opacity: 0 }}
+          animate={reduced ? false : { opacity: 1 }}
+          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
           className="relative w-full max-w-sm rounded-3xl border border-login-card-border bg-login-card-bg p-10 shadow-2xl backdrop-blur-xl"
         >
           <LoginForm />

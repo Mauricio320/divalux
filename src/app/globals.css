@@ -34,6 +34,8 @@
   --login-bg: radial-gradient(125% 115% at 30% 30%, #24532f, #0a1a0f);
   --login-panel: linear-gradient(160deg, #163320, #0c1d11);
   --login-cta: linear-gradient(135deg, #52a064, #2f6b39);
+  --login-cta-shadow: 0 14px 30px -12px rgba(47, 107, 57, 0.85);
+  --login-cta-glow: 0 18px 42px -10px rgba(82, 160, 100, 0.6);
   --login-halo: radial-gradient(circle, rgba(231, 205, 132, 0.3), rgba(231, 205, 132, 0) 62%);
   --login-firefly-glow: 0 0 8px 2px rgba(231, 205, 132, 0.9), 0 0 20px 7px rgba(231, 205, 132, 0.45);
   --login-gold: #e7cd84;

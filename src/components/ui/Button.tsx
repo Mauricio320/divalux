@@ -62,7 +62,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
   const isDisabled = disabled || isLoading
 
   const baseClasses = cn(
-    'inline-flex items-center justify-center rounded-lg font-medium',
+    'inline-flex cursor-pointer items-center justify-center rounded-lg font-medium',
     'transition-colors duration-150',
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg',
     'disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none',
