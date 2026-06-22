@@ -1,13 +1,8 @@
-import type { TargetAndTransition, Transition, Variants } from 'framer-motion'
+import type { Transition, Variants } from 'framer-motion'
 
 export const TRANSITION: Transition = {
   duration: 0.2,
   ease: [0.22, 1, 0.36, 1],
-}
-
-export const infiniteEase: Transition = {
-  repeat: Infinity,
-  ease: 'easeInOut',
 }
 
 export const fadeIn: Variants = {
@@ -94,7 +89,3 @@ export const shake: Variants = {
   },
 }
 
-export const breathe: TargetAndTransition = {
-  scale: [1, 1.015, 1],
-  transition: { duration: 8, repeat: Infinity, ease: 'easeInOut' },
-}

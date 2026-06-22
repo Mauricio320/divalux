@@ -28,6 +28,24 @@
   --success: #4a6b2e;
   --warning: #b8923f;
   --info: #3d5a26;
+  --glass-bg: rgba(250, 248, 243, 0.66);
+  --glass-border: rgba(255, 255, 255, 0.55);
+  --glass-scrim: rgba(20, 24, 15, 0.2);
+  --login-bg: radial-gradient(125% 115% at 30% 30%, #24532f, #0a1a0f);
+  --login-panel: linear-gradient(160deg, #163320, #0c1d11);
+  --login-cta: linear-gradient(135deg, #52a064, #2f6b39);
+  --login-halo: radial-gradient(circle, rgba(231, 205, 132, 0.3), rgba(231, 205, 132, 0) 62%);
+  --login-firefly-glow: 0 0 8px 2px rgba(231, 205, 132, 0.9), 0 0 20px 7px rgba(231, 205, 132, 0.45);
+  --login-gold: #e7cd84;
+  --login-firefly: #fff7d6;
+  --login-error: #ef9a9a;
+  --login-badge-bg: rgba(12, 28, 16, 0.35);
+  --login-card-bg: rgba(255, 255, 255, 0.08);
+  --login-card-border: rgba(231, 205, 132, 0.32);
+  --login-input-bg: rgba(255, 255, 255, 0.1);
+  --login-input-border: rgba(255, 255, 255, 0.24);
+  --login-fg-muted: rgba(255, 255, 255, 0.72);
+  --login-fg-subtle: rgba(255, 255, 255, 0.55);
 }
 
 .dark {
@@ -56,6 +74,9 @@
   --success: #7fa356;
   --warning: #d8b566;
   --info: #7fa356;
+  --glass-bg: rgba(20, 24, 15, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-scrim: rgba(0, 0, 0, 0.38);
 }
 
 @theme static {
@@ -119,6 +140,19 @@
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-info: var(--info);
+  --color-glass-bg: var(--glass-bg);
+  --color-glass-border: var(--glass-border);
+  --color-glass-scrim: var(--glass-scrim);
+  --color-login-gold: var(--login-gold);
+  --color-login-firefly: var(--login-firefly);
+  --color-login-error: var(--login-error);
+  --color-login-badge-bg: var(--login-badge-bg);
+  --color-login-card-bg: var(--login-card-bg);
+  --color-login-card-border: var(--login-card-border);
+  --color-login-input-bg: var(--login-input-bg);
+  --color-login-input-border: var(--login-input-border);
+  --color-login-fg-muted: var(--login-fg-muted);
+  --color-login-fg-subtle: var(--login-fg-subtle);
 
   --font-sans: var(--font-sans-src);
   --font-serif: var(--font-serif-src);

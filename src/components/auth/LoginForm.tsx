@@ -8,16 +8,16 @@ import { useRouter } from 'next/navigation'
 import { motion, useAnimationControls, useReducedMotion } from 'framer-motion'
 import { Check } from 'lucide-react'
 import { loginSchema, type LoginInput } from '@/lib/validations/login'
-import { shake, staggerContainer, staggerItem } from '@/lib/motion'
-import Field from '@/components/ui/Field'
+import { shake } from '@/lib/motion'
 import Input from '@/components/ui/Input'
 import PasswordInput from '@/components/ui/PasswordInput'
 import Button from '@/components/ui/Button'
 import Logo from '@/components/ui/Logo'
 import { useToast } from '@/components/ui/ToastProvider'
 
-const focusInput =
-  'transition-colors duration-200 focus-visible:border-primary motion-reduce:transition-none'
+const inputClass =
+  'rounded-xl border-login-input-border bg-login-input-bg px-4 py-3 text-neutro-50 placeholder:text-login-fg-subtle focus-visible:border-login-gold'
+const labelClass = 'font-sans text-[11px] uppercase tracking-[0.14em] text-login-fg-muted'
 
 export default function LoginForm() {
   const router = useRouter()
@@ -40,7 +40,7 @@ export default function LoginForm() {
       const res = await signIn('credentials', {
         email: data.email,
         password: data.password,
-        recordarme: data.recordarme ? 'true' : 'false',
+        recordarme: 'false',
         redirect: false,
       })
       if (res?.error) {
@@ -60,89 +60,77 @@ export default function LoginForm() {
   }
 
   return (
-    <motion.div variants={shake} initial="idle" animate={controls} className="w-full max-w-sm">
-      <motion.form
-        onSubmit={handleSubmit(onSubmit)}
-        variants={staggerContainer}
-        initial={reduced ? false : 'hidden'}
-        animate={reduced ? false : 'visible'}
-        noValidate
-        className="flex flex-col gap-5"
-      >
-        <motion.div variants={staggerItem} className="mb-2 flex flex-col items-center gap-2 lg:items-start">
-          <span className="dark:hidden">
-            <Logo variant="full" height={48} priority />
-          </span>
-          <span className="hidden dark:block">
-            <Logo variant="full-white" height={48} priority />
-          </span>
-        </motion.div>
+    <motion.div variants={shake} initial="idle" animate={controls}>
+      <div className="mb-6 flex items-center gap-3">
+        <Logo variant="full-white" height={34} priority />
+        <span className="font-sans text-[8px] uppercase tracking-[0.4em] text-login-gold">
+          Poder Natural
+        </span>
+      </div>
 
-        <motion.div variants={staggerItem} className="text-center lg:text-left">
-          <h1 className="font-serif text-3xl font-semibold text-fg">Iniciar sesión</h1>
-          <p className="mt-1 text-sm text-fg-muted">Bienvenido de nuevo a Divailux</p>
-        </motion.div>
+      <h1 className="font-serif text-3xl font-medium text-neutro-50">Bienvenida de nuevo</h1>
+      <p className="mt-1 font-sans text-sm text-login-fg-muted">
+        Ingresa y consiente tu cabello con romero
+      </p>
 
-        <motion.div variants={staggerItem}>
-          <Field label="Correo" htmlFor="email" error={formState.errors.email?.message}>
-            <Input
-              id="email"
-              type="email"
-              autoComplete="email"
-              placeholder="tucorreo@empresa.com"
-              error={!!formState.errors.email}
-              className={focusInput}
-              {...register('email')}
-            />
-          </Field>
-        </motion.div>
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-6 flex flex-col gap-4">
+        <label className="flex flex-col gap-2">
+          <span className={labelClass}>Correo electrónico</span>
+          <Input
+            type="email"
+            autoComplete="email"
+            placeholder="tucorreo@email.com"
+            error={!!formState.errors.email}
+            className={inputClass}
+            {...register('email')}
+          />
+          {formState.errors.email && (
+            <span className="font-sans text-xs text-login-error">{formState.errors.email.message}</span>
+          )}
+        </label>
 
-        <motion.div variants={staggerItem}>
-          <Field label="Contraseña" htmlFor="password" error={formState.errors.password?.message}>
-            <PasswordInput
-              id="password"
-              autoComplete="current-password"
-              placeholder="••••••••"
-              error={!!formState.errors.password}
-              className={focusInput}
-              {...register('password')}
-            />
-          </Field>
-        </motion.div>
+        <label className="flex flex-col gap-2">
+          <span className={labelClass}>Contraseña</span>
+          <PasswordInput
+            autoComplete="current-password"
+            placeholder="••••••••"
+            error={!!formState.errors.password}
+            className={inputClass}
+            toggleClassName="text-login-gold hover:text-login-firefly"
+            {...register('password')}
+          />
+          {formState.errors.password && (
+            <span className="font-sans text-xs text-login-error">
+              {formState.errors.password.message}
+            </span>
+          )}
+        </label>
 
-        <motion.div variants={staggerItem} className="flex items-center justify-between gap-3">
-          <label className="flex cursor-pointer select-none items-center gap-2 text-sm text-fg-muted">
-            <input
-              type="checkbox"
-              {...register('recordarme')}
-              className="h-4 w-4 rounded border-border-strong accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
-            />
-            Recordarme
-          </label>
-          <span
-            role="link"
-            aria-disabled="true"
+        <div className="-mt-1 text-right">
+          <button
+            type="button"
+            disabled
             title="Próximamente"
-            className="cursor-not-allowed text-sm text-fg-subtle"
+            className="cursor-not-allowed font-sans text-[12.5px] text-login-gold disabled:opacity-100"
           >
             ¿Olvidaste tu contraseña?
-          </span>
-        </motion.div>
+          </button>
+        </div>
 
-        <motion.div variants={staggerItem}>
-          <Button
-            type="submit"
-            variant="primary"
-            size="lg"
-            fullWidth
-            isLoading={formState.isSubmitting && !success}
-            disabled={success}
-            leftIcon={success ? <Check size={18} aria-hidden /> : undefined}
-          >
-            {success ? 'Sesión iniciada' : 'Iniciar sesión'}
-          </Button>
-        </motion.div>
-      </motion.form>
+        <Button
+          type="submit"
+          variant="cta"
+          size="lg"
+          fullWidth
+          isLoading={formState.isSubmitting && !success}
+          disabled={success || formState.isSubmitting}
+          leftIcon={success ? <Check size={18} aria-hidden /> : undefined}
+          style={{ backgroundImage: 'var(--login-cta)' }}
+          className="mt-1 transition-transform hover:-translate-y-0.5 hover:brightness-110"
+        >
+          {success ? 'Sesión iniciada' : 'Iniciar sesión'}
+        </Button>
+      </form>
     </motion.div>
   )
 }

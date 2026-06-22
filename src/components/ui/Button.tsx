@@ -13,6 +13,8 @@ const SCALE_TAP: TargetAndTransition = {
 const variantClasses = {
   primary:
     'bg-primary text-primary-fg hover:bg-primary-hover',
+  cta:
+    'bg-verde-500 text-neutro-50 hover:bg-verde-600',
   secondary:
     'bg-surface text-fg border border-border-strong hover:bg-surface-2',
   ghost:

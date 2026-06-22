@@ -7,10 +7,11 @@ import { cn } from '@/lib/cn'
 
 type Props = React.InputHTMLAttributes<HTMLInputElement> & {
   error?: boolean
+  toggleClassName?: string
 }
 
 const PasswordInput = React.forwardRef<HTMLInputElement, Props>(
-  ({ error, className, ...rest }, ref) => {
+  ({ error, className, toggleClassName, ...rest }, ref) => {
     const [visible, setVisible] = React.useState(false)
 
     return (
@@ -31,6 +32,7 @@ const PasswordInput = React.forwardRef<HTMLInputElement, Props>(
             'absolute inset-y-0 right-0 flex items-center pr-3 text-fg-subtle',
             'transition-colors duration-150 hover:text-fg',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg rounded-r-lg',
+            toggleClassName,
           )}
         >
           {visible ? <EyeOff size={18} aria-hidden /> : <Eye size={18} aria-hidden />}
